@@ -8,8 +8,7 @@
     "${mod_author}"
   ],
   "contributors": [
-    "Steficy",
-    "AzureDoom"
+    "${mod_credits}"
   ],
   "contact": {
     "homepage": "${mod_url}",

@@ -1,6 +1,6 @@
 {
   "required": true,
-  "package": "mod.azure.renameme.mixins",
+  "package": "net.pixeldreamstudios.shrek.mixins",
   "compatibilityLevel": "JAVA_17",
   "injectors": {
     "defaultRequire": 1

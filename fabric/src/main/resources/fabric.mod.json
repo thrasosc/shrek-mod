@@ -1,11 +1,15 @@
 {
   "schemaVersion": 1,
-  "id": "${mod_id}",
+  "id": "shrek",
   "version": "${mod_version}",
   "name": "${mod_name}",
   "description": "${mod_description}",
   "authors": [
     "${mod_author}"
+  ],
+  "contributors": [
+    "Steficy",
+    "AzureDoom"
   ],
   "contact": {
     "homepage": "${mod_url}",
@@ -17,7 +21,10 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "mod.azure.renameme.FabricLibMod"
+      "net.pixeldreamstudios.shrek.FabricShrekMod"
+    ],
+    "client": [
+      "net.pixeldreamstudios.shrek.ClientListener"
     ]
   },
   "mixins": [

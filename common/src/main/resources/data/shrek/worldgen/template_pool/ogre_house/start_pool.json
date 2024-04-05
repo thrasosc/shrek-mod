@@ -7,7 +7,7 @@
       "element": {
         "location": "shrek:ogre_house",
         "processors": "minecraft:empty",
-        "projection": "rigid",
+        "projection": "terrain_matching",
         "element_type": "minecraft:single_pool_element"
       }
     }

@@ -26,6 +26,12 @@ description='''${mod_description}'''
 [[dependencies.${mod_id}]]
     modId="azurelib"
     mandatory=true
-    versionRange="[2.0.11,)"
+    versionRange="[2.0.20,)"
     ordering="BEFORE"
     side="BOTH"
+[[dependencies.${mod_id}]]
+modId="smartbrainlib"
+mandatory=true
+versionRange="[1.13,)"
+ordering="BEFORE"
+side="BOTH"

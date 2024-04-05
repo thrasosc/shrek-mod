@@ -1,5 +1,6 @@
 package net.pixeldreamstudios.shrek.entity;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import mod.azure.azurelib.ai.pathing.AzureNavigation;
 import mod.azure.azurelib.animatable.GeoEntity;
 import mod.azure.azurelib.core.animatable.instance.AnimatableInstanceCache;
@@ -8,27 +9,52 @@ import mod.azure.azurelib.core.animation.AnimatableManager;
 import mod.azure.azurelib.core.animation.AnimationController;
 import mod.azure.azurelib.core.object.PlayState;
 import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.*;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.pixeldreamstudios.shrek.entity.constant.ShrekDefaultAnimations;
+import net.pixeldreamstudios.shrek.entity.task.CustomMeleeAttack;
+import net.tslat.smartbrainlib.api.SmartBrainOwner;
+import net.tslat.smartbrainlib.api.core.BrainActivityGroup;
+import net.tslat.smartbrainlib.api.core.SmartBrainProvider;
+import net.tslat.smartbrainlib.api.core.behaviour.FirstApplicableBehaviour;
+import net.tslat.smartbrainlib.api.core.behaviour.OneRandomBehaviour;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.look.LookAtTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.misc.Idle;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.move.FloatToSurfaceOfFluid;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.move.MoveToWalkTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.path.SetRandomWalkTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.path.SetWalkTargetToAttackTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.target.InvalidateAttackTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.target.SetPlayerLookTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.target.SetRandomLookTarget;
+import net.tslat.smartbrainlib.api.core.behaviour.custom.target.TargetOrRetaliate;
+import net.tslat.smartbrainlib.api.core.sensor.ExtendedSensor;
+import net.tslat.smartbrainlib.api.core.sensor.custom.UnreachableTargetSensor;
+import net.tslat.smartbrainlib.api.core.sensor.vanilla.HurtBySensor;
+import net.tslat.smartbrainlib.api.core.sensor.vanilla.NearbyLivingEntitySensor;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Random;
 
-public class OgreEntity extends PathfinderMob implements GeoEntity {
+public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEntity>, GeoEntity {
     private AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
-    private long ticksUntilAttackFinish = 0;
+    private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(OgreEntity.class, EntityDataSerializers.INT);
+    private final Random ATTACK_VARIATION = new Random();
 
     public OgreEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -45,37 +71,68 @@ public class OgreEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(1, new FloatGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.25f, true));
-        this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 1.0f));
-        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 6.0f));
-        this.goalSelector.addGoal(5, new RandomLookAroundGoal(this));
-        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+    protected void customServerAiStep() {
+        tickBrain(this);
     }
 
     @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar controllerRegistrar) {
-        controllerRegistrar.add(new AnimationController<>(this, "controller", 3, state -> {
-            if (state.isMoving() && !swinging) {
-                if (isAggressive() && !swinging) {
-                    state.getController().setAnimation(ShrekDefaultAnimations.RUN);
-                    return PlayState.CONTINUE;
+    public List<? extends ExtendedSensor<? extends OgreEntity>> getSensors() {
+        return ObjectArrayList.of(
+                new NearbyLivingEntitySensor<OgreEntity>().setPredicate((target, entity) ->
+                        target.isAlive() && entity.hasLineOfSight(target)),
+                new HurtBySensor<>(),
+                new UnreachableTargetSensor<>());
+    }
+
+    @Override
+    public BrainActivityGroup<OgreEntity> getCoreTasks() {
+        return BrainActivityGroup.coreTasks(
+                new LookAtTarget<>(),
+                new FloatToSurfaceOfFluid<>(),
+                new MoveToWalkTarget<>());
+    }
+
+    @Override
+    public BrainActivityGroup<OgreEntity> getIdleTasks() {
+        return BrainActivityGroup.idleTasks(
+                new FirstApplicableBehaviour<OgreEntity>(
+                        new TargetOrRetaliate<>().alertAlliesWhen((mob, entity) -> this.isAggressive()),
+                        new SetPlayerLookTarget<>().stopIf(
+                                target -> !target.isAlive() || target instanceof Player player && player.isCreative()),
+                        new SetRandomLookTarget<>()),
+                new OneRandomBehaviour<>(new SetRandomWalkTarget<>().setRadius(20).speedModifier(1.0f),
+                        new SetRandomWalkTarget<>().speedModifier(0.25f),
+                        new Idle<>().runFor(entity -> entity.getRandom().nextInt(300, 600)))
+        );
+    }
+
+    @Override
+    public BrainActivityGroup<OgreEntity> getFightTasks() {
+        return BrainActivityGroup.fightTasks(
+                new InvalidateAttackTarget<>().invalidateIf((target, entity) -> !target.isAlive() || !entity.hasLineOfSight(target)),
+                new SetWalkTargetToAttackTarget<>().speedMod((owner, target) -> 1.25F),
+                new CustomMeleeAttack<>(20));
+    }
+
+    @Override
+    protected Brain.Provider<?> brainProvider() {
+        return new SmartBrainProvider<>(this);
+    }
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new AnimationController<>(this, "livingController", 3, event -> {
+            if (event.isMoving() && !swinging) {
+                if (isAggressive()) {
+                    return event.setAndContinue(ShrekDefaultAnimations.RUN);
                 }
-                state.getController().setAnimation(ShrekDefaultAnimations.WALK);
-                return PlayState.CONTINUE;
-            } else if (swinging) {
-                state.getController().setAnimation(new Random().nextBoolean() ? ShrekDefaultAnimations.ATTACK : ShrekDefaultAnimations.ATTACK_2);
-                ticksUntilAttackFinish++;
-                if (ticksUntilAttackFinish > 20 * 4) {
-                    swinging = false;
-                    ticksUntilAttackFinish = 0;
-                }
-                return PlayState.CONTINUE;
+                return event.setAndContinue(ShrekDefaultAnimations.WALK);
             }
-            state.getController().setAnimation(ShrekDefaultAnimations.IDLE);
-            return PlayState.CONTINUE;
-        }));
+            return event.setAndContinue(ShrekDefaultAnimations.IDLE);
+        })).add(new AnimationController<>(this, "attackController", 3, event -> {
+            swinging = false;
+            return PlayState.STOP;
+        }).triggerableAnim("attack", ShrekDefaultAnimations.ATTACK).triggerableAnim("attack2", ShrekDefaultAnimations.ATTACK2));
     }
 
     protected SoundEvent getAmbientSound() {
@@ -100,5 +157,31 @@ public class OgreEntity extends PathfinderMob implements GeoEntity {
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return cache;
+    }
+
+    public int getAttckingState() {
+        return entityData.get(STATE);
+    }
+
+    public void setAttackingState(int time) {
+        entityData.set(STATE, time);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        entityData.define(STATE, 0);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag compound) {
+        super.readAdditionalSaveData(compound);
+        setAttackingState(compound.getInt("state"));
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("state", getAttckingState());
     }
 }

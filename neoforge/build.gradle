@@ -81,6 +81,7 @@ repositories {
     maven { url "https://minecraft.curseforge.com/api/maven/" }
     maven { url "https://cfa2.cursemaven.com" }
     maven { url 'https://api.modrinth.com/maven' }
+    maven { url "https://dl.cloudsmith.io/public/tslat/sbl/maven/" }
     mavenCentral()
 }
 
@@ -89,6 +90,7 @@ dependencies {
 	implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.2.1"))
     implementation fg.deobf("mod.azure.azurelib:azurelib-neo-${minecraft_version}:${azurelib_version}")
 	implementation(annotationProcessor("io.github.llamalad7:mixinextras-common:0.2.1"))
+    implementation fg.deobf("net.tslat.smartbrainlib:SmartBrainLib-neoforge-${minecraft_version}:${sbl_version}")
     compileOnly project(":common")
     annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT:processor")
 }

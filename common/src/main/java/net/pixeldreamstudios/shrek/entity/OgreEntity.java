@@ -17,10 +17,13 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.Brain;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.behavior.LookAtTargetSink;
+import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -46,6 +49,7 @@ import net.tslat.smartbrainlib.api.core.sensor.ExtendedSensor;
 import net.tslat.smartbrainlib.api.core.sensor.custom.UnreachableTargetSensor;
 import net.tslat.smartbrainlib.api.core.sensor.vanilla.HurtBySensor;
 import net.tslat.smartbrainlib.api.core.sensor.vanilla.NearbyLivingEntitySensor;
+import net.tslat.smartbrainlib.util.BrainUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -65,7 +69,7 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
         return Monster.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 100)
                 .add(Attributes.ATTACK_DAMAGE, 10)
-                .add(Attributes.ATTACK_KNOCKBACK, 1)
+                .add(Attributes.ATTACK_KNOCKBACK, 3)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8)
                 .add(Attributes.MOVEMENT_SPEED, 0.2);
     }
@@ -78,8 +82,7 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
     @Override
     public List<? extends ExtendedSensor<? extends OgreEntity>> getSensors() {
         return ObjectArrayList.of(
-                new NearbyLivingEntitySensor<OgreEntity>().setPredicate((target, entity) ->
-                        target.isAlive() && entity.hasLineOfSight(target)),
+                new NearbyLivingEntitySensor<>(),
                 new HurtBySensor<>(),
                 new UnreachableTargetSensor<>());
     }
@@ -89,6 +92,7 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
         return BrainActivityGroup.coreTasks(
                 new LookAtTarget<>(),
                 new FloatToSurfaceOfFluid<>(),
+                new LookAtTargetSink(40, 300),
                 new MoveToWalkTarget<>());
     }
 
@@ -96,13 +100,17 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
     public BrainActivityGroup<OgreEntity> getIdleTasks() {
         return BrainActivityGroup.idleTasks(
                 new FirstApplicableBehaviour<OgreEntity>(
-                        new TargetOrRetaliate<>().alertAlliesWhen((mob, entity) -> this.isAggressive()),
-                        new SetPlayerLookTarget<>().stopIf(
-                                target -> !target.isAlive() || target instanceof Player player && player.isCreative()),
+                        new TargetOrRetaliate<>()
+                                .attackablePredicate(entity -> {
+                                    LivingEntity lastAttacker = BrainUtils.getMemory(this, MemoryModuleType.HURT_BY_ENTITY);
+                                    return entity.isAlive() && entity.equals(lastAttacker) && (!(entity instanceof Player player) || !player.isCreative());
+                                })
+                                .alertAlliesWhen((mob, entity) -> this.isAggressive()),
+                        new SetPlayerLookTarget<>(),
                         new SetRandomLookTarget<>()),
-                new OneRandomBehaviour<>(new SetRandomWalkTarget<>().setRadius(20).speedModifier(1.0f),
-                        new SetRandomWalkTarget<>().speedModifier(0.25f),
-                        new Idle<>().runFor(entity -> entity.getRandom().nextInt(300, 600)))
+                new OneRandomBehaviour<>(
+                        new SetRandomWalkTarget<>(),
+                        new Idle<>().runFor(entity -> entity.getRandom().nextInt(30, 60)))
         );
     }
 

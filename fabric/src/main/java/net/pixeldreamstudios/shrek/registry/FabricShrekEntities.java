@@ -13,7 +13,7 @@ import net.pixeldreamstudios.shrek.entity.OgreEntity;
 import java.util.LinkedList;
 import java.util.List;
 
-public class FabricShrekEntities {
+public record FabricShrekEntities() {
     public static List<EntityType<? extends Entity>> ENTITY_TYPES = new LinkedList<>();
 
     /**

@@ -1,9 +1,3 @@
-v1.1.0
+v1.1.2
 
-- add `"minecraft:mangrove_swamp"` to biome tags
-- add `"#c:swamp"` to biome tags for more compatibility (thank you, @Sunconure11)
-- add `"#forge:is_swamp"` to biome tags for more compatibility
-- add onion item
-- make ogre attack only if angered
-- increase ogre attack knockback
-- make ogre drop onion upon death
+- make shrek angry when player attacks donkey

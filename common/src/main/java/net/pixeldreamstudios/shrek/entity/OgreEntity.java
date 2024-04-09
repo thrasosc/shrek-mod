@@ -24,6 +24,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.behavior.LookAtTargetSink;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
+import net.minecraft.world.entity.animal.horse.Donkey;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -102,8 +103,21 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
                 new FirstApplicableBehaviour<OgreEntity>(
                         new TargetOrRetaliate<>()
                                 .attackablePredicate(entity -> {
-                                    LivingEntity lastAttacker = BrainUtils.getMemory(this, MemoryModuleType.HURT_BY_ENTITY);
-                                    return entity.isAlive() && entity.equals(lastAttacker) && (!(entity instanceof Player player) || !player.isCreative());
+                                    LivingEntity lastOgreAttacker = BrainUtils.getMemory(this, MemoryModuleType.HURT_BY_ENTITY);
+                                    List<LivingEntity> livingEntities = BrainUtils.getMemory(this, MemoryModuleType.NEAREST_LIVING_ENTITIES);
+                                    Donkey donkey = null;
+                                    LivingEntity lastDonkeyAttacker = null;
+                                    if (livingEntities != null) {
+                                        for (LivingEntity livingEntity : livingEntities) {
+                                            if (livingEntity instanceof Donkey) {
+                                                donkey = (Donkey) livingEntity;
+                                            }
+                                        }
+                                    }
+                                    if (donkey != null) {
+                                        lastDonkeyAttacker = donkey.getLastAttacker();
+                                    }
+                                    return entity.isAlive() && (entity.equals(lastOgreAttacker) || entity.equals(lastDonkeyAttacker)) && (!(entity instanceof Player player) || !player.isCreative());
                                 })
                                 .alertAlliesWhen((mob, entity) -> this.isAggressive()),
                         new SetPlayerLookTarget<>(),

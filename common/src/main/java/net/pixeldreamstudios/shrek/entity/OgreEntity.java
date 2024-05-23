@@ -29,6 +29,7 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.pixeldreamstudios.shrek.Shrek;
 import net.pixeldreamstudios.shrek.entity.constant.ShrekDefaultAnimations;
 import net.pixeldreamstudios.shrek.entity.task.CustomMeleeAttack;
 import net.tslat.smartbrainlib.api.SmartBrainOwner;
@@ -54,12 +55,10 @@ import net.tslat.smartbrainlib.util.BrainUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
-import java.util.Random;
 
 public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEntity>, GeoEntity {
     private AnimatableInstanceCache cache = new SingletonAnimatableInstanceCache(this);
     private static final EntityDataAccessor<Integer> STATE = SynchedEntityData.defineId(OgreEntity.class, EntityDataSerializers.INT);
-    private final Random ATTACK_VARIATION = new Random();
 
     public OgreEntity(EntityType<? extends PathfinderMob> entityType, Level level) {
         super(entityType, level);
@@ -68,8 +67,8 @@ public class OgreEntity extends PathfinderMob implements SmartBrainOwner<OgreEnt
 
     public static AttributeSupplier.@NotNull Builder createMobAttributes() {
         return Monster.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 100)
-                .add(Attributes.ATTACK_DAMAGE, 10)
+                .add(Attributes.MAX_HEALTH, Shrek.config.ogreHealth)
+                .add(Attributes.ATTACK_DAMAGE, Shrek.config.ogreAttackDamage)
                 .add(Attributes.ATTACK_KNOCKBACK, 3)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.8)
                 .add(Attributes.MOVEMENT_SPEED, 0.2);
